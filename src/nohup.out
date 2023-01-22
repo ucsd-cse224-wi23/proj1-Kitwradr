@@ -1,0 +1,33 @@
+My server Id: 1
+Got the following server configs: [{0 localhost 8080} {1 localhost 8081} {2 localhost 8082} {3 localhost 8083}]
+Number of bits for mask 2
+My server address is :  localhost:8081
+My server Id: 3
+Got the following server configs: [{0 localhost 8080} {1 localhost 8081} {2 localhost 8082} {3 localhost 8083}]
+Number of bits for mask 2
+My server address is :  localhost:8083
+My server Id: 2
+Got the following server configs: [{0 localhost 8080} {1 localhost 8081} {2 localhost 8082} {3 localhost 8083}]
+Number of bits for mask 2
+My server address is :  localhost:8082
+My server Id: 0
+Got the following server configs: [{0 localhost 8080} {1 localhost 8081} {2 localhost 8082} {3 localhost 8083}]
+Number of bits for mask 2
+My server address is :  localhost:8080
+My server Id: 2
+My server Id: 3
+Got the following server configs: [{0 localhost 8080} {1 localhost 8081} {2 localhost 8082} {3 localhost 8083}]
+Got the following server configs: [{0 localhost 8080} {1 localhost 8081} {2 localhost 8082} {3 localhost 8083}]
+Number of bits for mask 2
+My server address is :  localhost:8082
+Number of bits for mask 2
+My server address is :  localhost:8083
+My server Id: 1
+Got the following server configs: [{0 localhost 8080} {1 localhost 8081} {2 localhost 8082} {3 localhost 8083}]
+Number of bits for mask 2
+My server address is :  localhost:8081
+My server Id: 0
+Got the following server configs: [{0 localhost 8080} {1 localhost 8081} {2 localhost 8082} {3 localhost 8083}]
+Number of bits for mask 2
+My server address is :  localhost:8080
+ Connecting to server  localhost:8081 from server 1
