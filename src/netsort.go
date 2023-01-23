@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"math"
@@ -28,6 +29,9 @@ type Record struct {
 	Key      [10]byte
 	Value    [90]byte
 }
+
+var number_of_bits int = 0
+var my_server_id = 0
 
 func readServerConfigs(configPath string) ServerConfigs {
 	f, err := ioutil.ReadFile(configPath)
@@ -76,21 +80,39 @@ func handleClientConnection(conn net.Conn, write_only_ch chan<- Record, server_i
 	//client_msg_buf := make([]byte, MaxMessageSize)
 	// bytes_read, err := conn.Read(client_msg_buf)
 
-	var record Record
-	err := binary.Read(conn, binary.BigEndian, &record)
-	if err != nil {
-		fmt.Println("read error")
-		os.Exit(1)
+	// var record Record
+	// err := binary.Read(conn, binary.BigEndian, &record)
+	// if err != nil {
+	// 	fmt.Println("read error", err.Error())
+	// 	os.Exit(1)
+	// }
+	// fmt.Println("Record received on server ", server_id)
+	// write_only_ch <- record
+	// conn.Close()
+
+	for {
+		var record Record
+		err := binary.Read(conn, binary.BigEndian, &record)
+		if err != nil {
+			fmt.Println("read error", err.Error())
+			os.Exit(1)
+		}
+		fmt.Println("Record received on server ", server_id, record)
+		write_only_ch <- record
+		if record.Complete == byte(1) { // Close connection if stream is complete
+			break
+		}
+
 	}
-	fmt.Println("Record received on server ", server_id)
-	write_only_ch <- record
+
 	conn.Close()
+
 }
 
 func readFullyFromClient(ch chan Record, records []Record, wg *sync.WaitGroup) {
 	for {
 		record := <-ch
-		fmt.Println("Receiving on")
+		fmt.Println("Receiving on server", my_server_id)
 		if record.Complete == 1 {
 			wg.Done()
 			break
@@ -109,6 +131,7 @@ func main() {
 
 	// What is my serverId
 	serverId, err := strconv.Atoi(os.Args[1])
+	my_server_id = serverId
 	if err != nil {
 		log.Fatalf("Invalid serverId, must be an int %v", err)
 	}
@@ -125,23 +148,19 @@ func main() {
 	// Establishing a mesh of connections between all servers
 
 	number_of_servers := len(scs.Servers)
-
-	number_of_bits := math.Log2(float64(number_of_servers))
-
+	number_of_bits = int(math.Log2(float64(number_of_servers)))
 	fmt.Println("Number of bits for mask", number_of_bits)
-
-	ch := make(chan Record)
-	defer close(ch)
 
 	var self_address string
 	// Listening on this server
 	for _, server := range scs.Servers {
 		if serverId == server.ServerId {
 			self_address = server.Host + ":" + server.Port
-			fmt.Println("My server address is : ", self_address)
 		}
-
 	}
+
+	ch := make(chan Record)
+	defer close(ch)
 
 	go listenForClientConnections(ch, serverId, self_address)
 
@@ -154,34 +173,93 @@ func main() {
 	}
 	defer file.Close()
 
+	records := getAllRecords(file, serverId)
+	self_records := segregateRecords(records, serverId)
+
 	// Connecting to rest of the servers
 	for _, server := range scs.Servers {
-		//fmt.Println("Server configs", index, server)
-		//fmt.Println(serverId, server.ServerId, serverId != server.ServerId)
+
 		if server.ServerId != serverId {
-			go ConnectToServer(server.Host, server.Port, serverId, file)
+			go ConnectAndSendToServer(server.Host, server.Port, serverId, records)
 		}
 	}
-	messages_received := 0
 
-	var my_records []Record
-	var wg sync.WaitGroup
-	wg.Add(number_of_servers - 1)
+	// Read from received data from clients
+	clients_done := 0
 
-	for messages_received < number_of_servers {
+	var my_records = make([]Record, 0)
+	my_records = append(my_records, self_records...)
+	//var wg sync.WaitGroup
+	//wg.Add(number_of_servers - 1)
+
+	for clients_done < number_of_servers-1 {
 		// message := <-ch
 		// fmt.Println("Received message", message, "on server", serverId)
 
-		go readFullyFromClient(ch, my_records, &wg)
-		messages_received++
+		// go readFullyFromClient(ch, my_records, &wg)
+		// clients_done++
+
+		record := <-ch
+		fmt.Println("Receiving on server", my_server_id)
+		if record.Complete == 1 {
+			clients_done++
+			break
+		} else {
+			my_records = append(my_records, record)
+		}
 
 	}
-	wg.Wait()
-	fmt.Println("Number of records on server", serverId, "is", len(my_records))
+	//wg.Wait()
+	fmt.Println("Number of records on server", serverId, "is", len(my_records), "self records num = ", len(self_records))
 
 }
 
-func ConnectToServer(host string, port string, server_id int, file os.File) {
+func getAllRecords(file *os.File, server_id int) []Record {
+
+	var records []Record
+	var number_of_records int = 0
+	for {
+		var record Record
+		record.Complete = 0
+
+		err := binary.Read(file, binary.BigEndian, &record.Key)
+
+		if err != nil {
+			if err == io.EOF {
+				// End of File reached
+				break
+			}
+			fmt.Println("Error reading key:", err)
+			return nil
+		}
+
+		err = binary.Read(file, binary.BigEndian, &record.Value)
+
+		if err != nil {
+			if err == io.EOF {
+				// End of File reached
+				break
+			}
+			fmt.Println("Error reading Value:", err)
+			return nil
+		}
+
+		fmt.Println("Key:", record.Key, "Value:", record.Value, "Server", server_id)
+		number_of_records++
+		if belongsToServer(record.Key, server_id) {
+			records = append(records, record)
+		}
+
+	}
+	fmt.Println("Number of records in input file of server", server_id, "is", number_of_records)
+	var lastRecord Record
+	lastRecord.Complete = 1 // Marking the last record to complete the stream
+	records = append(records, lastRecord)
+	return records
+
+}
+
+func ConnectAndSendToServer(host string, port string, server_id int, records []Record) {
 	address := host + ":" + port
 	//fmt.Println("Connecting to server ", address, "from server", server_id)
 	var conn net.Conn
@@ -197,28 +275,44 @@ func ConnectToServer(host string, port string, server_id int, file os.File) {
 		time.Sleep(1 * time.Second)
 	}
 
-	sendData(conn, server_id, file)
+	specific_records := segregateRecords(records, server_id)
+	sendData(conn, server_id, specific_records)
 
 }
 
-func sendData(conn net.Conn, server_id int, file os.File) {
-	defer conn.Close()
-	var message string
-	if server_id == 1 {
-		message = "from server 1"
-	} else if server_id == 2 {
-		message = "from server 2"
-	} else if server_id == 3 {
-		message = "from server 3"
-	} else {
-		message = "from server 4"
+func segregateRecords(records []Record, server_id int) []Record {
+	var new_records []Record
+	for _, record := range records {
+		if belongsToServer(record.Key, server_id) {
+			new_records = append(new_records, record)
+		}
+
 	}
+	var lastRecord Record
+	lastRecord.Complete = 1 // Marking the last record to complete the stream
+	new_records = append(new_records, lastRecord)
+	return new_records
+}
 
-	_, write_err := conn.Write([]byte(message))
+func belongsToServer(key [10]byte, server_id int) bool {
+	var a byte = key[0]
+	n := number_of_bits
+	msb_bits := a >> (8 - n) & (1<<n - 1)
+	return msb_bits == byte(server_id)
+}
 
-	if write_err != nil {
-		fmt.Println("write failed:", write_err)
-		return
+func sendData(conn net.Conn, server_id int, records []Record) {
+	defer conn.Close()
+
+	for _, record := range records {
+
+		err := binary.Write(conn, binary.LittleEndian, record)
+
+		if err != nil {
+			fmt.Println("Error writing struct to connection:", err)
+			return
+		}
+
 	}
 
 }
