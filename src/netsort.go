@@ -218,10 +218,10 @@ func main() {
 
 func sortAndWrite(records []Record, filename string) {
 
-	out_file, err := os.Open(filename)
+	out_file, err := os.Create(filename)
 
 	if err != nil {
-		fmt.Println("Error opening file:", err)
+		fmt.Println("Error opening output file:", err)
 		return
 	}
 	defer out_file.Close()
@@ -236,9 +236,11 @@ func sortAndWrite(records []Record, filename string) {
 }
 
 func sortRecords(records []Record) []Record {
-	return sort.Slice(records, func(i, j int) bool {
+	sort.Slice(records, func(i, j int) bool {
 		return bytes.Compare(records[i].Key[:], records[j].Key[:]) < 0
 	})
+
+	return records
 }
 
 func getAllRecords(file *os.File, server_id int) []Record {
