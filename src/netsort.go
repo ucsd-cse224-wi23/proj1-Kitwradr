@@ -213,7 +213,7 @@ func main() {
 	fmt.Println("Number of records on server", serverId, "is", len(my_records), "self records num = ", len(self_records))
 	fmt.Println("Server", serverId, "is shutting down and is no more")
 
-	sortAndWrite(records, os.Args[3])
+	sortAndWrite(my_records, os.Args[3])
 }
 
 func sortAndWrite(records []Record, filename string) {
@@ -227,6 +227,8 @@ func sortAndWrite(records []Record, filename string) {
 	defer out_file.Close()
 
 	sorted_records := sortRecords(records)
+
+	fmt.Println("Number of sorted records on server", my_server_id, len(sorted_records))
 
 	for _, record := range sorted_records {
 		binary.Write(out_file, binary.BigEndian, record.Key)
