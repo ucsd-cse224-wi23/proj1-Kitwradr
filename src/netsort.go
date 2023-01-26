@@ -102,7 +102,7 @@ func handleClientConnection(conn net.Conn, write_only_ch chan<- Record, server_i
 			fmt.Println("read error", err.Error())
 			os.Exit(1)
 		}
-		fmt.Println("Record received on server ", server_id, record)
+		//fmt.Println("Record received on server ", server_id, record)
 		write_only_ch <- record
 		if record.Complete == byte(1) { // Close connection if stream is complete
 			break
@@ -115,7 +115,7 @@ func handleClientConnection(conn net.Conn, write_only_ch chan<- Record, server_i
 func readFullyFromClient(ch chan Record, records []Record, wg *sync.WaitGroup) {
 	for {
 		record := <-ch
-		fmt.Println("Receiving on server", my_server_id)
+		//fmt.Println("Receiving on server", my_server_id)
 		if record.Complete == 1 {
 			wg.Done()
 			break
@@ -200,7 +200,7 @@ func main() {
 	// reading from channel - the data from the rest of the clients
 	for clients_done < number_of_servers-1 {
 		record := <-ch
-		fmt.Println("Receiving on server", my_server_id)
+		//fmt.Println("Receiving on server", my_server_id)
 		if record.Complete == 1 {
 			clients_done++
 			fmt.Println("Number of clients completed are", clients_done)
