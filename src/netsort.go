@@ -80,19 +80,6 @@ func listenForClientConnections(write_only_ch chan<- Record, server_id int, addr
 
 func handleClientConnection(conn net.Conn, write_only_ch chan<- Record, server_id int) {
 
-	//client_msg_buf := make([]byte, MaxMessageSize)
-	// bytes_read, err := conn.Read(client_msg_buf)
-
-	// var record Record
-	// err := binary.Read(conn, binary.BigEndian, &record)
-	// if err != nil {
-	// 	fmt.Println("read error", err.Error())
-	// 	os.Exit(1)
-	// }
-	// fmt.Println("Record received on server ", server_id)
-	// write_only_ch <- record
-	// conn.Close()
-
 	defer conn.Close()
 
 	for {
@@ -152,9 +139,10 @@ func main() {
 
 	number_of_servers := len(scs.Servers)
 	number_of_bits = int(math.Log2(float64(number_of_servers)))
-	fmt.Println("Number of bits for mask", number_of_bits)
+	//fmt.Println("Number of bits for mask", number_of_bits)
 
 	var self_address string
+
 	// Listening on this server
 	for _, server := range scs.Servers {
 		if serverId == server.ServerId {
@@ -194,8 +182,6 @@ func main() {
 
 	var my_records = make([]Record, 0)
 	my_records = append(my_records, self_records...)
-	//var wg sync.WaitGroup
-	//wg.Add(number_of_servers - 1)
 
 	// reading from channel - the data from the rest of the clients
 	for clients_done < number_of_servers-1 {
